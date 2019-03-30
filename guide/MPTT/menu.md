@@ -1,3 +1,3 @@
 ## [MPTT]()
- - [installation](installation)
- - [usage](usage)
+ - [installation](Install)
+ - [usage](Usage)
