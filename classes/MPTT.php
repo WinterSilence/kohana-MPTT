@@ -1,3 +1,2 @@
-<?php defined('SYSPATH') or die('No direct script access.');
-
+<?php
 class MPTT extends Kohana_MPTT {}
