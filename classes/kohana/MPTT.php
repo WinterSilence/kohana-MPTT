@@ -1,15 +1,11 @@
-<?php defined('SYSPATH') or die('No direct script access.');
+<?php
 /**
- * Adds basic MPTT functionality to Kohana.
+ * Adds basic MPTT functionality.
  *
- * @module_version  1.0
- * @Kohana_version  3.3.0
- * @dependencies    Kohana database module
- * @author          Pierre-Emmanuel Lévesque
- * @date            July 18th, 2013
- * @email           pierre.e.levesque@gmail.com
- * @copyright       Copyright 2013, Pierre-Emmanuel Lévesque
- * @license         MIT License - @see LICENSE.md
+ * @dependencies    KO7 database module
+ * @author          Kohana Team
+ * @copyright       (c) Kohana Team
+ * @license         https://koseven.ga/LICENSE.md
  */
 class Kohana_MPTT {
 
@@ -26,16 +22,12 @@ class Kohana_MPTT {
     /**
      * @var array   Sibling relationships.
      */
-    protected $_sibling_relationships = array(
-        'after',
-    );
+    protected $_sibling_relationships = ['after'];
 
     /**
      * @var array   Child relationships.
      */
-    protected $_child_relationships = array(
-        'first child of',
-    );
+    protected $_child_relationships = ['first child of'];
 
     /**
      * Constructor
@@ -64,10 +56,10 @@ class Kohana_MPTT {
     {
         // Make sure there isn't already a root node.
         if ($this->has_root())
-            throw new Kohana_Exception('A root node already exists.');
+            throw new Database_Exception('A root node already exists.');
 
         // System data.
-        $sys_data = array('lft' => 1, 'rgt' => 2);
+        $sys_data = ['lft' => 1, 'rgt' => 2];
 
         // Add scope to system data.
         $this->scope !== NULL AND $sys_data['scope'] = $this->scope;
@@ -233,16 +225,20 @@ class Kohana_MPTT {
                 }
 
                 // Move the node and its children into the gap.
-                $this->_update_position(array('lft', 'rgt'), $increment, array(
-                    array('lft', '>=', $node['lft']),
-                    array('rgt', '<=', $node['rgt']),
-                ));
+                $this->_update_position(
+                    ['lft', 'rgt'], 
+                    $increment, 
+                    [
+                        ['lft', '>=', $node['lft']],
+                        ['rgt', '<=', $node['rgt']],
+                    ]
+                );
 
                 // Close the gap created by the moved nodes.
                 $limit = $node['lft'] - 1;
                 $increment = $gap_size * -1;
-                $this->_update_position('lft', $increment, array('lft', '>', $limit));
-                $this->_update_position('rgt', $increment, array('rgt', '>', $limit));
+                $this->_update_position('lft', $increment, ['lft', '>', $limit]);
+                $this->_update_position('rgt', $increment, ['rgt', '>', $limit]);
 
                 $moved = TRUE;
             }
@@ -264,19 +260,17 @@ class Kohana_MPTT {
      */
     public function delete($node_ids)
     {
-        $deleted_ids = array();
+        $deleted_ids = [];
 
         // Make sure node_ids is an array.
-        ! is_array($node_ids) AND $node_ids = array($node_ids);
+        ! is_array($node_ids) AND $node_ids = [$node_ids];
 
         // Loop through all the node ids to delete.
         foreach ($node_ids as $node_id)
         {
             // Get the node to delete.
             $node = $this->get_node($node_id);
-
-            $ids_to_delete = array();
-
+            $ids_to_delete = [];
             $tree = $this->get_tree()->as_array();
 
             // Loop the tree and delete ids.
@@ -286,7 +280,6 @@ class Kohana_MPTT {
                 {
                     // Save the ids to delete.
                     $ids_to_delete[] = $v['id'];
-
                     // Remove ids that will be deleted from the tree.
                     unset($tree[$k]);
                 }
@@ -313,8 +306,8 @@ class Kohana_MPTT {
 
                     // Close the gap created by the deletion.
                     $increment = ($num_deletions * 2) * -1;
-                    $this->_update_position('lft', $increment, array('lft', '>', $node['lft']));
-                    $this->_update_position('rgt', $increment, array('rgt', '>', $node['lft']));
+                    $this->_update_position('lft', $increment, ['lft', '>', $node['lft']]);
+                    $this->_update_position('rgt', $increment, ['rgt', '>', $node['lft']]);
                 }
             }
         }
@@ -342,10 +335,7 @@ class Kohana_MPTT {
         $query = DB::select()
             ->from($this->table)
             ->where('id', '=', $node_id);
-
-        $query = $this->_where_scope($query);
-
-        return $query->execute()->current();
+        return $this->_where_scope($query)->execute()->current();
     }
 
     /**
@@ -389,9 +379,6 @@ class Kohana_MPTT {
      * Checks if the tree has a root.
      *
      * @return  bool   has root
-     *
-     * @uses    get_root_node()
-     *
      * @caller  create_root()
      * @caller  insert()
      */
@@ -523,15 +510,10 @@ class Kohana_MPTT {
      * @param   int      gap size (number of nodes * 2) [def: 2]
      * @return  mixed    gap lft, FALSE on failure
      *
-     * @uses    get_node()
-     * @uses    _sibling_relationships
-     * @uses    _update_position()
-     *
      * @caller  insert()
      * @caller  move()
      *
-     * @throws  Kohana_Exception   The root node cannot have siblings.
-     * @throws  Kohana_Exception   :relationship is not a supported relationship.
+     * @throws  Database_Exception
      */
     protected function _create_gap($relationship, $node_id, $size = 2)
     {
@@ -542,7 +524,7 @@ class Kohana_MPTT {
         {
             // Don't allow the root node to have siblings.
             if ($node['lft'] == 1 AND in_array($relationship, $this->_sibling_relationships))
-                throw new Kohana_Exception('The root node cannot have siblings.');
+                throw new Database_Exception('The root node cannot have siblings.');
 
             // Get parameters depending on the relationship.
             switch ($relationship)
@@ -557,9 +539,10 @@ class Kohana_MPTT {
                 break;
                 default:
                     // Throw an exception if the relationship doesn't exist.
-                    throw new Kohana_Exception(':relationship is not a supported relationship.',
-                    array(':relationship' => $relationship));
-                break;
+                    throw new Database_Exception(
+                        ':relationship is not a supported relationship.',
+                        [':relationship' => $relationship]
+                    );
             }
 
             // Update the node positions to create the gap.
@@ -597,17 +580,17 @@ class Kohana_MPTT {
     protected function _update_position($columns, $increment, $where)
     {
         // Make sure columns is an array.
-        ! is_array($columns) AND $columns = array($columns);
+        ! is_array($columns) AND $columns = [$columns];
 
         // Make sure where is an array of arrays.
-        ! is_array($where[0]) AND $where = array($where);
+        ! is_array($where[0]) AND $where = [$where];
 
         // Build and run the query.
         $query = DB::update($this->table);
 
         foreach ($columns as $column)
         {
-            $query->set(array($column => DB::expr("`".$column."` + ".$increment)));
+            $query->set([$column => DB::expr($column . ' + ' . $increment)]);
         }
 
         foreach ($where as $condition)
@@ -621,8 +604,8 @@ class Kohana_MPTT {
     /**
      * Adds a where scope clause in the query.
      *
-     * @param   SQL obj   query
-     * @return  SQL obj   query
+     * @param   object  query
+     * @return  object  query
      *
      * @caller  delete()
      * @caller  get_node()
@@ -638,5 +621,4 @@ class Kohana_MPTT {
 
         return $query;
     }
-
-} // Kohana_MPTT
+}
